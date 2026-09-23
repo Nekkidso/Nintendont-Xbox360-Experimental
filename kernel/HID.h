@@ -6,6 +6,7 @@
 #include "vsprintf.h"
 #include "alloc.h"
 #include "PS3Controller.h"
+#include "usb.h"
 
 typedef struct Layout
 {
@@ -98,11 +99,16 @@ typedef struct {
 } req_args; // 32 bytes
 
 void HIDInit();
-s32 HIDOpen();
+s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList );
 void HIDClose();
 void HIDUpdateRegisters(u32 LoaderRequest);
 void HIDGCInit( void );
 void HIDPS3Init( void );
+void HIDXBOX360Init( void );
+void HIDXBOX360Read( void );
+void HIDXBOX360SetLED( u8 led );
+void HIDXBOX360SetRumble( u8 duration_right, u8 power_right, u8 duration_left, u8 power_left );
+void HIDXBOX360Rumble( u32 Enable );
 void HIDPS3Read( void );
 void HIDIRQRead( void );
 void HIDPS3SetLED( u8 led );
