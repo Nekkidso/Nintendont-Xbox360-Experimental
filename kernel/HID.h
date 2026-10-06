@@ -99,6 +99,7 @@ typedef struct {
 } req_args; // 32 bytes
 
 void HIDInit();
+void HIDInitVEN();
 s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList );
 void HIDClose();
 void HIDUpdateRegisters(u32 LoaderRequest);

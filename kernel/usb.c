@@ -136,6 +136,11 @@ s32 USB_Deinitialize()
 	return IPC_OK;
 }
 
+bool USB_IsInitialized()
+{
+	return ven_fd >= 0;
+}
+
 s32 USB_ReadIntrMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData)
 {
 	return __usb_interrupt_bulk_message(fd,USBV5_IOCTL_INTRMSG,bEndpoint,wLength,rpData);
@@ -164,6 +169,48 @@ s32 USB_ReadCtrlMsg(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u
 s32 USB_WriteCtrlMsg(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u16 wLength,void *rpData)
 {
 	return __usb_control_message(fd,bmRequestType,bmRequest,wValue,wIndex,wLength,rpData);
+}
+
+s32 USB_GetDeviceChangeAsync(usb_device_entry *devices, s32 queue, struct ipcmessage *message)
+{
+	return IOS_IoctlAsync(ven_fd, USBV5_IOCTL_GETDEVICECHANGE, NULL, 0, devices, sizeof(usb_device_entry)*USB_MAX_DEVICES, queue, message);
+}
+
+s32 USB_ResumeDevice(s32 device_id)
+{
+	s32 buffer[8] ALIGNED(32);
+	memset32(buffer, 0, sizeof(buffer));
+	buffer[0] = device_id;
+	buffer[2] = 1;
+	return IOS_Ioctl(ven_fd, USBV5_IOCTL_SUSPEND_RESUME, buffer, sizeof(buffer), NULL, 0);
+}
+
+s32 USB_GetDeviceParameters(s32 device_id, void *buffer, u32 length)
+{
+	s32 io_buffer[8] ALIGNED(32);
+	memset32(io_buffer, 0, sizeof(io_buffer));
+	io_buffer[0] = device_id;
+	io_buffer[2] = 0;
+	return IOS_Ioctl(ven_fd, USBV5_IOCTL_GETDEVPARAMS, io_buffer, sizeof(io_buffer), buffer, length);
+}
+
+s32 USB_AttachFinishAsync(s32 queue, struct ipcmessage *message)
+{
+	return IOS_IoctlAsync(ven_fd, USBV5_IOCTL_ATTACHFINISH, NULL, 0, NULL, 0, queue, message);
+}
+
+s32 USB_ControlTransfer(struct _usb_msg *msg, u8 direction, s32 queue, struct ipcmessage *message)
+{
+    if(message != NULL)
+        return IOS_IoctlvAsync(ven_fd, USBV5_IOCTL_CTRLMSG, 2-direction, direction, msg->vec, queue, message);
+    return IOS_Ioctlv(ven_fd, USBV5_IOCTL_CTRLMSG, 2-direction, direction, msg->vec);
+}
+
+s32 USB_InterruptTransfer(struct _usb_msg *msg, u8 direction, s32 queue, struct ipcmessage *message)
+{
+    if(message != NULL)
+        return IOS_IoctlvAsync(ven_fd, USBV5_IOCTL_INTRMSG, 2-direction, direction, msg->vec, queue, message);
+    return IOS_Ioctlv(ven_fd, USBV5_IOCTL_INTRMSG, 2-direction, direction, msg->vec);
 }
 
 s32 USB_ClearHalt(s32 device_id, u8 endpoint)

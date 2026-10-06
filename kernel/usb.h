@@ -146,6 +146,7 @@ struct _usb_msg {
 
 s32 USB_Initialize();
 s32 USB_Deinitialize();
+bool USB_IsInitialized();
 
 s32 USB_ReadIntrMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
 s32 USB_ReadBlkMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
@@ -154,6 +155,13 @@ s32 USB_ReadCtrlMsg(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u
 s32 USB_WriteIntrMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
 s32 USB_WriteBlkMsg(s32 fd,u8 bEndpoint,u16 wLength,void *rpData);
 s32 USB_WriteCtrlMsg(s32 fd,u8 bmRequestType,u8 bmRequest,u16 wValue,u16 wIndex,u16 wLength,void *rpData);
+
+s32 USB_GetDeviceChangeAsync(usb_device_entry *devices, s32 queue, struct ipcmessage *message);
+s32 USB_ResumeDevice(s32 device_id);
+s32 USB_GetDeviceParameters(s32 device_id, void *buffer, u32 length);
+s32 USB_AttachFinishAsync(s32 queue, struct ipcmessage *message);
+s32 USB_ControlTransfer(struct _usb_msg *msg, u8 direction, s32 queue, struct ipcmessage *message);
+s32 USB_InterruptTransfer(struct _usb_msg *msg, u8 direction, s32 queue, struct ipcmessage *message);
 
 s32 USB_ClearHalt(s32 fd, u8 endpointAddress);
 

@@ -218,6 +218,7 @@ int _main( int argc, char *argv[] )
 
 	BootStatus(7, s_size, s_cnt);
 	ConfigInit();
+	HIDInitVEN();
 
 	if (ConfigGetConfig(NIN_CFG_LOG))
 		SDisInit = 1;  // Looks okay after threading fix
@@ -557,7 +558,10 @@ int _main( int argc, char *argv[] )
 	if(UseUSB)
 		USBStorage_Shutdown();
 	else
+	{
+		USB_Deinitialize();
 		SDHCShutdown();
+	}
 
 //make sure drive led is off before quitting
 	if( access_led ) clear32(HW_GPIO_OUT, GPIO_SLOT_LED);

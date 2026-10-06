@@ -46,7 +46,6 @@ static u8 *kb_input = (u8*)0x13026C60;
 static const u8 ss_led_pattern[8] = {0x0, 0x02, 0x04, 0x08, 0x10, 0x12, 0x14, 0x18};
 
 static s32 HIDHandle = -1;
-static s32 VENHandle = -1;
 static u32 PS3LedSet = 0;
 static u32 XBOX360LedSet = 0;
 static u32 invert_lx = 0;
@@ -112,6 +111,7 @@ static u32 HID_Timer = 0;
 static u8 *hidheap = NULL;
 static s32 hidqueue = -1;
 static vu32 hidread = 0, keyboardread = 0, hidchange = 0, hidattach = 0, hidattached = 0, hidwaittimer = 0;
+static vs32 hidreadresult = 0;
 static vu32 venchange = 0, venattach = 0, venwaittimer = 0;
 static u32 HIDAlarm();
 static s32 HIDInterruptMessage(u32 isKBreq, u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg);
@@ -130,7 +130,6 @@ void HIDInit( void )
 {
 	HIDHandle = IOS_Open("/dev/usb/hid", 0 );
 	if(HIDHandle < 0) return; //should never happen
-        VENHandle = IOS_Open("/dev/usb/ven", 0 );
 
 	ps3buf = (u8*)malloca( 64, 32 );
 	gcbuf = (u8*)malloca( 32,32 );
@@ -153,14 +152,27 @@ void HIDInit( void )
 	memset32(AttachedDevices, 0, sizeof(usb_device_entry)*32);
 	memset32(VENAttachedDevices, 0, sizeof(usb_device_entry)*32);
 	IOS_IoctlAsync(HIDHandle, GetDeviceChange, NULL, 0, AttachedDevices, 0x180, hidqueue, hidchangemsg);
-	if(VENHandle >= 0)
-		IOS_IoctlAsync(VENHandle, GetDeviceChange, NULL, 0, VENAttachedDevices, 0x180, hidqueue, venchangemsg);
 
 	memset32((void*)HID_STATUS, 0, 0x20);
 	sync_after_write((void*)HID_STATUS, 0x20);
 
 	mdelay(100);
 	HID_Timer = read32(HW_TIMER);
+}
+
+void HIDInitVEN( void )
+{
+        if(!USB_IsInitialized())
+                USB_Initialize();
+
+        if(!USB_IsInitialized())
+                return;
+
+        venchange = 0;
+        venattach = 0;
+        venwaittimer = 0;
+        memset32(VENAttachedDevices, 0, sizeof(usb_device_entry)*32);
+        USB_GetDeviceChangeAsync(VENAttachedDevices, hidqueue, venchangemsg);
 }
 
 s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList )
@@ -180,7 +192,7 @@ s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList )
 	u32 DeviceVID = 0, DevicePID = 0;
 	bool isXBOX360 = false;
 	bool isXBOX360Controller = false;
-        s32 DeviceHandle = isVEN ? VENHandle : HIDHandle;
+        s32 DeviceHandle = HIDHandle;
 	for(i = 0; i < 32; ++i)
 	{
 		if(DeviceList[i].vid != 0)
@@ -208,17 +220,31 @@ s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList )
 			dbgprintf("HID:DeviceID:%u\r\n", DeviceID );
 			dbgprintf("HID:VID:%04X PID:%04X\r\n", DeviceVID, DevicePID );
 
-			memset32(io_buffer, 0, 0x20);
-			io_buffer[0] = DeviceID;
-			io_buffer[2] = 1; //resume device
-			IOS_Ioctl(DeviceHandle, ResumeDevice, io_buffer, 0x20, NULL, 0);
+			if(isVEN)
+			{
+				USB_ResumeDevice(DeviceID);
+			}
+			else
+			{
+				memset32(io_buffer, 0, 0x20);
+				io_buffer[0] = DeviceID;
+				io_buffer[2] = 1; //resume device
+				IOS_Ioctl(DeviceHandle, ResumeDevice, io_buffer, 0x20, NULL, 0);
+			}
 
 			memset32(HIDHeap, 0, HeapLength);
 
-			memset32(io_buffer, 0, 0x20);
-			io_buffer[0] = DeviceID;
-			io_buffer[2] = 0;
-			IOS_Ioctl(DeviceHandle, GetDeviceParameters, io_buffer, 0x20, HIDHeap, HeapLength);
+			if(isVEN)
+			{
+				USB_GetDeviceParameters(DeviceID, HIDHeap, HeapLength);
+			}
+			else
+			{
+				memset32(io_buffer, 0, 0x20);
+				io_buffer[0] = DeviceID;
+				io_buffer[2] = 0;
+				IOS_Ioctl(DeviceHandle, GetDeviceParameters, io_buffer, 0x20, HIDHeap, HeapLength);
+			}
 
 			//BootStatusError(8, 0);
 
@@ -685,10 +711,14 @@ s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList )
 	else //(re)start reading
 	{
 		memset32((void*)HID_STATUS, 0, 0x20);
-		write32(HID_STATUS, 1);
+		if(!isXBOX360Controller)
+			write32(HID_STATUS, 1);
 		sync_after_write((void*)HID_STATUS, 0x20);
 		if(isXBOX360Controller)
+		{
+			hidreadresult = 0;
 			HIDInterruptBulkMessage(Packet, wMaxPacketSize, bEndpointAddressController, hidqueue, hidreadcontrollermsg);
+		}
 		else if(HID_CTRL->Polltype)
 			HIDInterruptMessage(0, Packet, wMaxPacketSize, bEndpointAddressController, hidqueue, hidreadcontrollermsg);
 		else
@@ -718,8 +748,6 @@ s32 HIDOpen( u32 LoaderRequest, bool isVEN, usb_device_entry *DeviceList )
 void HIDClose()
 {
 	IOS_Close(HIDHandle);
-        if(VENHandle >= 0) IOS_Close(VENHandle);
-        VENHandle = -1;
 	HIDHandle = -1;
 }
 
@@ -729,6 +757,8 @@ static u32 HIDAlarm()
 	while(1)
 	{
 		mqueue_recv(hidqueue, &msg, 0);
+		if(msg == hidreadcontrollermsg)
+			hidreadresult = msg->result;
 		mqueue_ack(msg, 0);
 		if(msg == hidreadcontrollermsg)
 			hidread = 1;
@@ -826,8 +856,8 @@ static s32 HIDControlMessageVEN(u8 *Data, u32 Length, u32 RequestType, u32 Reque
         msg->vec[1].len = Length;
 
         if(asyncmsg != NULL)
-                return IOS_IoctlvAsync(VENHandle, ControlMessage, 2-request_dir, request_dir, msg->vec, asyncqueue, asyncmsg);
-        return IOS_Ioctlv(VENHandle, ControlMessage, 2-request_dir, request_dir, msg->vec);
+                return USB_ControlTransfer(msg, request_dir, asyncqueue, asyncmsg);
+        return USB_ControlTransfer(msg, request_dir, asyncqueue, NULL);
 }
 
 static s32 HIDInterruptBulkMessage(u8 *Data, u32 Length, u32 Endpoint, s32 asyncqueue, struct ipcmessage *asyncmsg)
@@ -849,8 +879,8 @@ static s32 HIDInterruptBulkMessage(u8 *Data, u32 Length, u32 Endpoint, s32 async
         msg->vec[1].len = Length;
 
         if(asyncmsg != NULL)
-                return IOS_IoctlvAsync(VENHandle, InterruptMessage, 2-endpoint_dir, endpoint_dir, msg->vec, asyncqueue, asyncmsg);
-        return IOS_Ioctlv(VENHandle, InterruptMessage, 2-endpoint_dir, endpoint_dir, msg->vec);
+                return USB_InterruptTransfer(msg, endpoint_dir, asyncqueue, asyncmsg);
+        return USB_InterruptTransfer(msg, endpoint_dir, asyncqueue, NULL);
 }
 
 void HIDGCInit()
@@ -1011,7 +1041,11 @@ static long double mapIntervall(long double A, long double B, long double a, lon
 
 void HIDXBOX360Read()
 {
-        if(Packet[1] == 0x14)
+	sync_before_read(Packet, MemPacketSize);
+
+        bool ValidXBOX360Report = hidreadresult == (s32)wMaxPacketSize && Packet[1] == 0x14;
+
+        if(ValidXBOX360Report)
         {
                 if(!XBOX360LedSet)
                 {
@@ -1048,6 +1082,12 @@ void HIDXBOX360Read()
 
         memcpy(HID_Packet, Packet, wMaxPacketSize);
         sync_after_write(HID_Packet, wMaxPacketSize);
+
+        if(ValidXBOX360Report)
+        {
+                write32(HID_STATUS, 1);
+                sync_after_write((void*)HID_STATUS, 0x20);
+        }
 
         HIDInterruptBulkMessage(Packet, wMaxPacketSize,
                 bEndpointAddressController, hidqueue, hidreadcontrollermsg);
@@ -1287,7 +1327,7 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 				IOS_IoctlAsync(HIDHandle, AttachFinish, NULL, 0, NULL, 0, hidqueue, hidattachmsg);
 			}
 		}
-		if(VENHandle >= 0 && venchange == 1)
+		if(USB_IsInitialized() && venchange == 1)
 		{
 			if(!ControllerActive || ControllerIsVEN)
 				hidattached = 0;
@@ -1297,7 +1337,7 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 			{
 				venchange = 0;
 				venwaittimer = 0;
-				IOS_IoctlAsync(VENHandle, AttachFinish, NULL, 0, NULL, 0, hidqueue, venattachmsg);
+				USB_AttachFinishAsync(hidqueue, venattachmsg);
 			}
 		}
 		if(hidattach == 1)
@@ -1315,7 +1355,7 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 			memset32(AttachedDevices, 0, sizeof(usb_device_entry)*32);
 			IOS_IoctlAsync(HIDHandle, GetDeviceChange, NULL, 0, AttachedDevices, 0x180, hidqueue, hidchangemsg);
 		}
-		if(VENHandle >= 0 && venattach == 1)
+		if(USB_IsInitialized() && venattach == 1)
 		{
 			venattach = 0;
 			memcpy(VENAttachedDevicesSnapshot, VENAttachedDevices, sizeof(VENAttachedDevices));
@@ -1328,7 +1368,18 @@ void HIDUpdateRegisters(u32 LoaderRequest)
 					HIDOpen(LoaderRequest, false, AttachedDevicesSnapshot);
 			}
 			memset32(VENAttachedDevices, 0, sizeof(usb_device_entry)*32);
-			IOS_IoctlAsync(VENHandle, GetDeviceChange, NULL, 0, VENAttachedDevices, 0x180, hidqueue, venchangemsg);
+			USB_GetDeviceChangeAsync(VENAttachedDevices, hidqueue, venchangemsg);
+		}
+		if(hidread == 1 && HIDRead == HIDXBOX360Read && hidreadresult < 0)
+		{
+			hidread = 0;
+			HIDRead = NULL;
+			HIDRumble = NULL;
+			RumbleEnabled = 0;
+			ControllerActive = false;
+			ControllerID = 0;
+			memset32((void*)HID_STATUS, 0, 0x20);
+			sync_after_write((void*)HID_STATUS, 0x20);
 		}
 		if(hidattached)
 		{
