@@ -1,39 +1,104 @@
-# ⚠️ Unofficial Modified Build — Third-Party Wii Remote Support
+# Nintendont Xbox 360 Experimental
 
-> **This fork contains an unofficial compatibility fix for certain third-party Wii Remotes.**
->
-> The modification adds support for Wii Remotes that respond with **ACK `0x11`** during the extension-controller handshake.
->
-> **Nothing else has been intentionally changed.**
->
-> 🎮 **Tested successfully on real Wii hardware with a third-party Wii Remote.**
->
-> 📦 **Ready-to-use build:**
-> See the [latest release](../../releases/latest) for a directly installable Wii package.
+**Unofficial Nintendont fork with experimental wired Xbox 360 controller support for Nintendo Wii and Wii U (vWii).**
 
-### What is different?
+Built on [Nintendont by FIX94 and contributors](https://github.com/FIX94/Nintendont) and the wired Xbox 360 controller work from [revvv's Nintendont-XBOX360](https://github.com/revvv/Nintendont-XBOX360). The goal is to improve USB controller reliability while keeping Nintendont's existing GameCube and HID functionality intact.
 
-The official Nintendont code expects a specific response during the Wii Remote extension handshake. Some third-party Wii Remotes, including the **"NEW2in1"** type, use ACK `0x11` instead.
+> [!WARNING]
+> **Experimental alpha build.** Initial testing has succeeded on real Wii hardware, but extended stability testing is ongoing. The Xbox 360 additions have **not** yet been validated on Wii U (vWii). This is not an official Nintendont release.
 
-This fork adds a targeted check for that response while preserving the original behavior for standard controllers.
-
-The source modification is limited to:
-
-```text
-common/include/Metadata.h
-kernel/BT.c
-loader/source/main.c
-```
-
-### Credits
-
-**Nintendont** is an open-source project originally developed by **FIX94** and its contributors.
-
-The identification of the third-party Wii Remote compatibility issue was inspired by the work of **revvv**, specifically the *"support 3rd party WiiMote NEW2in1"* change in the Nintendont-XBOX360 project.
-
-This fork does **not** claim ownership of the original Nintendont software.
+**[Download Alpha 1](https://github.com/Nekkidso/Nintendont-Xbox360-Experimental/releases/tag/v1.2.0-xbox360-alpha.1)** · **[Releases](https://github.com/Nekkidso/Nintendont-Xbox360-Experimental/releases)** · **[Original Nintendont](https://github.com/FIX94/Nintendont)**
 
 ---
+
+## Changes in this fork
+
+### Wired Xbox 360 controller support
+
+Based on revvv's implementation, with additional experimental work:
+
+- Wired Xbox 360 USB controller support (`VID 045E`, `PID 028E`).
+- Mapping for face buttons, D-pad, analog sticks and GameCube inputs through `controllers/045e_028e.ini`.
+- Support for analog triggers, including fully pressed trigger states.
+- Revised face-button mapping: Xbox **A → GameCube A**, **B → B**, **X → X**, **Y → Y**.
+
+**Testing note:** The revised A/B/X/Y mapping is included in Alpha 1, but that specific change still needs physical validation on Wii.
+
+### USB initialization and hotplug fixes
+
+- **USB cleanup before kernel startup:** releases loader-side USB resources before the game kernel starts, addressing Xbox 360 controller detection issues seen when starting games from SD.
+- **Hotplug handling:** improves USB controller disconnection, reconnection and switching between wired Xbox 360 and USB HID controllers.
+- **HID configuration cache:** invalidates relevant PowerPC-side cache lines for shared HID configuration data, preventing stale controller layouts after hotplug and the resulting incorrect button or analog stick behavior.
+
+These changes have passed initial tests on real Wii hardware, including game launch from SD and USB storage and repeated Xbox 360 / HID controller switching.
+
+## Install the experimental build
+
+1. Download `Nintendont-Xbox360-Experimental-20261009.zip` from [Alpha 1](https://github.com/Nekkidso/Nintendont-Xbox360-Experimental/releases/tag/v1.2.0-xbox360-alpha.1).
+2. Extract the ZIP **to the root** of the SD card or USB storage device. It contains:
+
+    ```text
+    apps/
+      Nintendont-Xbox-Test/
+        boot.dol
+        icon.png
+        meta.xml
+    controllers/
+      045E_028E.ini
+    ```
+
+3. Put compatible GameCube game files under `/games/`, following the original documentation below.
+4. Connect a **wired Xbox 360 USB controller**, then launch **Nintendont Xbox Test** from the Homebrew Channel.
+
+The package installs to a separate `apps/Nintendont-Xbox-Test/` directory so you can keep an existing Nintendont installation alongside it. Back up any controller INI you customize before replacing it.
+
+**Note:** The *original Nintendont* quick-installation instructions further down describe the standard upstream layout. For this experimental alpha, use the packaged paths above.
+
+## Testing status
+
+**Initially validated on a real Nintendo Wii:**
+
+- Wired Xbox 360 controller initialization and gameplay input.
+- Starting games from SD and USB storage.
+- USB resource cleanup before game startup.
+- Controller disconnect/reconnect handling.
+- Switching between wired Xbox 360 and USB HID controllers after launching a game.
+- PowerPC-side HID configuration cache fix.
+
+**Still requires testing:**
+
+- The revised A/B/X/Y mapping in the latest controller INI.
+- Multi-day stability and compatibility across more games.
+- Wii U (vWii) behavior for the Xbox 360 modifications.
+- Simultaneous use of multiple independent USB controllers.
+
+## Known limitations
+
+- This is experimental and not an official Nintendont release.
+- The Xbox 360 implementation targets **wired** USB controllers; wireless Xbox 360 controller support is not provided by this implementation.
+- Multiple independent USB controllers connected simultaneously are **not a validated use case**.
+- Some HID controllers have device-specific initialization behavior.
+- Rumble and player LED behavior can depend on the controller and its `EndpointOut` configuration.
+- Not all games, controllers or system configurations have been tested.
+
+## Maintenance and upstream changes
+
+The experimental Xbox 360 support is maintained separately from [upstream Nintendont](https://github.com/FIX94/Nintendont). Official updates will be reviewed and tested before integration, especially changes affecting USB, HID and controller inputs, to avoid regressing the working Xbox 360 implementation.
+
+## Credits
+
+- **[FIX94 and the Nintendont contributors](https://github.com/FIX94/Nintendont):** original Nintendont project, architecture, features and development.
+- **[revvv](https://github.com/revvv/Nintendont-XBOX360):** original wired Xbox 360 controller implementation that forms the foundation of this fork.
+- **[Nekkidso](https://github.com/Nekkidso):** fork maintenance, development coordination, code integration, real Wii hardware testing, bug reproduction, validation and releases.
+- **ChatGPT — GPT-6 (OpenAI):** AI-assisted code analysis, debugging, USB/HID investigation, development guidance and documentation for this release. GPT-6 is the model used to prepare this documentation; earlier assistance may have used other model versions.
+
+This project does not claim ownership of the original Nintendont software. Hardware testing and release decisions are carried out by the project maintainer.
+
+---
+
+## Original Nintendont documentation
+
+The following documentation is preserved **unchanged** from this repository's existing README. It covers Nintendont's general features, installation, build requirements and notes. For current upstream information, also consult [FIX94/Nintendont](https://github.com/FIX94/Nintendont).
 
 ### Nintendont
 A Wii Homebrew Project to play GC Games on Wii and vWii on Wii U
