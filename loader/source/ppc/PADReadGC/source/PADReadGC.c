@@ -373,6 +373,19 @@ u32 PADRead(u32 calledByGame)
 	if (HIDPad == HID_PAD_NOT_SET)
 		HIDPad = MaxPads;
 
+	// Experimental: refresh HID configuration after controller hotplug.
+	if (HIDPad < HID_PAD_NONE)
+	{
+		u32 HIDCfgLine;
+		for (HIDCfgLine = (u32)HID_CTRL;
+		     HIDCfgLine < (u32)HID_CTRL + sizeof(*HID_CTRL);
+		     HIDCfgLine += 0x20)
+		{
+			asm volatile("dcbi 0,%0" : : "b"(HIDCfgLine) : "memory");
+		}
+		asm volatile("sync" : : : "memory");
+	}
+
 	for (chan = HIDPad; (chan < HID_PAD_NONE); (HID_CTRL->MultiIn == 3 || HID_CTRL->MultiIn == 4) ? (++chan) : (chan = HID_PAD_NONE)) // Run once unless MultiIn == 3
 	{
 		if(HIDMemPrep == 0) // first run
