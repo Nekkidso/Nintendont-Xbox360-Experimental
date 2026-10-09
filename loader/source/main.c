@@ -51,6 +51,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "ff_utf8.h"
 #include "diskio.h"
+extern s32 USB_OGC_Deinitialize();
 // from diskio.c
 extern DISC_INTERFACE *driver[_VOLUMES];
 
@@ -1209,6 +1210,7 @@ int main(int argc, char **argv)
 
 	//sync changes
 	CloseDevices();
+	USB_OGC_Deinitialize(); // Release USB handles before kernel startup
 
 	WPAD_Disconnect(0);
 	WPAD_Disconnect(1);
