@@ -22,7 +22,7 @@ Based on revvv's implementation, with additional experimental work:
 - Support for analog triggers, including fully pressed trigger states.
 - Revised face-button mapping: Xbox **A → GameCube A**, **B → B**, **X → X**, **Y → Y**.
 
-**Testing note:** The revised A/B/X/Y mapping is included in Alpha 1, but that specific change still needs physical validation on Wii.
+**Testing note:** The revised A/B/X/Y mapping in Alpha 1 has been successfully validated on real Nintendo Wii hardware using the official GitHub release package.
 
 ### USB initialization and hotplug fixes
 
@@ -64,10 +64,10 @@ The package installs to a separate `apps/Nintendont-Xbox-Test/` directory so you
 - Controller disconnect/reconnect handling.
 - Switching between wired Xbox 360 and USB HID controllers after launching a game.
 - PowerPC-side HID configuration cache fix.
+- Revised A/B/X/Y mapping validated using the official Alpha 1 release package.
 
 **Still requires testing:**
 
-- The revised A/B/X/Y mapping in the latest controller INI.
 - Multi-day stability and compatibility across more games.
 - Wii U (vWii) behavior for the Xbox 360 modifications.
 - Simultaneous use of multiple independent USB controllers.
