@@ -20,7 +20,7 @@ Based on revvv's implementation, with additional experimental work:
 - Wired Xbox 360 USB controller support (`VID 045E`, `PID 028E`).
 - Mapping for face buttons, D-pad, analog sticks and GameCube inputs through `controllers/045e_028e.ini`.
 - Support for analog triggers, including fully pressed trigger states.
-- Revised face-button mapping: Xbox **A → GameCube A**, **B → B**, **X → X**, **Y → Y**.
+- Revised face-button mapping: **Xbox A → GameCube A**, **B → B**, **X → X**, **Y → Y**.
 
 **Testing note:** The revised A/B/X/Y mapping in Alpha 1 has been successfully validated on real Nintendo Wii hardware using the official GitHub release package.
 
